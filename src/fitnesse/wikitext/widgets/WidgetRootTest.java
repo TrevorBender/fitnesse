@@ -9,7 +9,10 @@ import org.junit.Before;
 import org.junit.Test;
 import util.RegexTestCase;
 
+import java.util.regex.Pattern;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class WidgetRootTest {
   private WikiPage rootPage;
@@ -157,5 +160,44 @@ public class WidgetRootTest {
     PageData data = page.getData();
     String html = data.getHtml();
     assertEquals("<i>italics</i><br/><b>bold</b><br/>", html);
+  }
+
+  @Test
+  public void nestedTableExpansion () throws Exception {
+    WikiPage root = InMemoryPage.makeRoot("RooT");
+    PageData data = root.getData();
+    data.setContent("!define AA {|aa|\n}\n" +
+                    "!define BB (|${AA}|\n)\n"
+                   );
+    root.commit(data);
+    WikiPage page = root.getPageCrawler().addPage(root, PathParser.parse("SomePage"), "${BB}\n");
+    data = page.getData();
+    String html = data.getHtml();
+
+    boolean found = Pattern
+                    .compile("<table.+<table.+</table.+</table", Pattern.DOTALL)
+                    .matcher(html).find();
+    assertTrue(html, found);
+  }
+
+  @Test
+  public void nestedNewlineExpansion () throws Exception {
+    WikiPage root = InMemoryPage.makeRoot("RooT");
+    PageData data = root.getData();
+    data.setContent("!define LIST {\n * list\n}\n" +
+                    "!define BB (|${LIST}|\n)\n"
+                   );
+    root.commit(data);
+    WikiPage page = root.getPageCrawler().addPage(root, PathParser.parse("SomePage"), "${BB}\n");
+    data = page.getData();
+    String html = data.getHtml();
+
+    boolean found = Pattern
+                    .compile("<table.+<td.+<ul.+<li.+</li.+</ul.+</td.+</table", Pattern.DOTALL)
+                    .matcher(html).find();
+
+    assertTrue("[" + html + "]", found);
+
+
   }
 }
